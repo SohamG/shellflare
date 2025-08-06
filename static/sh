@@ -6,7 +6,7 @@
 # shellcheck enable=require-variable-braces
 # shellcheck enable=quote-safe-variables
 
-set -eux
+set -eu
 
 # all caps = can come from outside environment
 # all lower = internal variable
@@ -30,8 +30,10 @@ SCRIPT_NAME=${SCRIPT_NAME:-}
 # So it actually doesn't and curl reports a "Bad Hostname",
 # But still manages to recover and appear to work.
 # resorting to eval'ing all curl commands.
+# Update: <2025-08-05 Tue>
+# This has been solved by the sf_curl wrapper function.
 # shellcheck disable=2089
-CURLFLAGS="${CURLFLAGS:-} -v -s -H Connection:Keep-alive " # -H 'Connection: keep-alive' "
+CURLFLAGS="${CURLFLAGS:-} -s -H Connection:Keep-alive " # -H 'Connection: keep-alive' "
 
 HASHER=${HASHER:-}
 
@@ -53,7 +55,11 @@ manifest='{ "manifest": {} }'
 
 
 # Wrapper for curl to inject CURLFLAGS
+# Who says POSIX SH doesn't have arrays?
+# $@ is an ARRAY!
 sf_curl() {
+    # I want this to be word split
+    # shellcheck disable=2086
     set -- ${CURLFLAGS} "$@" 
     log "Invoked: curl $*"
     curl "$@" 
@@ -84,8 +90,8 @@ usage() {
 \tas Static Assets. Upload static websites, plain HTML or any other files and
 \tserve them via HTTP with cloudflare workers.
 \tSame as \`wrangler deploy\` but without the bloat. Header and Redirect
-settings can be set in the files \`_headers\` and \`_redirects\` in the
-same folder as the script. \n\n" \
+\tsettings can be set in the files \`_headers\` and \`_redirects\` in the
+\tsame folder as the script. \n\n" \
 	   "$(realpath "${DATA_DIR}")"
 
     printf "Significant Environment Variables:
@@ -106,8 +112,16 @@ same folder as the script. \n\n" \
 UNSAFE ENVIRONMENT VARIABLES:
 \tHASHER                 Command-string or shell function to provide when a
 \t                       suitable hash utility (sha256sum, openssl) is not found
-\t                       in PATH.
+\t                       in PATH. Script will ask you to set this variable if
+\t                       needed.
 \t                       (NOT RECOMMENDED).
+
+\tCURLFLAGS              Additional flags to pass into every curl invocation.
+\t                       May be useful for configuring proxies etc.
+\t                       Flags changing stdout of curl will break the script.
+\t                       Ensure that this value is trusted. Due to word
+\t                       splitting constraints, value *MUST NOT* contain quoted
+\t                       strings with spaces (ie for setting headers with -H).
 " "$(basename "$0")" >&2
 
     exit 1
@@ -355,16 +369,10 @@ do_upload() {
 upload_manifest() {
     endpt="${api_base}/accounts/${ACCOUNT_ID:?}/workers/scripts/${SCRIPT_NAME:?}/assets-upload-session"
 
-    # See comment above CURLFLAGS
-    # this shouldn't work as it is not in a $()
-    # but it does
-    # and im taking it
-    # Probably thanks to generous arg parsing by curl
-    # shellcheck disable=2090,2086
-    echo $(sf_curl -X "POST" "${endpt}" -H "Content-Type: application/json" \
+    sf_curl -X "POST" "${endpt}" -H "Content-Type: application/json" \
 	 -H "${authz_hdr}" \
 	 -H "X-Auth-Email: ${USER_EMAIL}" \
-	 -d "${manifest}")
+	 -d "${manifest}"
 }
 
 # $1: Result object after uploading all files.
@@ -373,6 +381,7 @@ finalize_worker() {
 
     md=$(jq -n -r ".assets.jwt=\"${token}\"")
     md=$(echo "${md}" | jq -r ".assets.config={}")
+    md=$(echo "${md}" | jq -r ".assets.config.html_handling=\"drop-trailing-slash\"")
     md=$(echo "${md}" | jq -r ".compatibility_date=\"2025-08-03\"")
     md=$(echo "${md}" | jq -r ".compatibility_flags=[]")
 
