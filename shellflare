@@ -458,7 +458,7 @@ main() {
     ensure_scriptname
 
     if test -z "${TMPDIR}"; then
-	if command -v "mktemp"; then
+	if command -v "mktemp" > /dev/null 2>&1; then
 	    TMPDIR="$(mktemp -d)"
 	elif test -d "/tmp"; then
 	    mkdir -p "/tmp/$(basename "$0")"
