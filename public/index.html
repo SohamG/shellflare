@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta property="og:title" content="Shellflare - upload to Cloudflare with sh">
+  <meta property="og:description" content="thomeswhomesknowmes">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/alvaromontoro/almond.css@latest/dist/almond.lite.min.css" />
+  <link rel="stylesheet" href="https://fonts.xz.style/serve/inter.css">
+  <link rel="alternate"  type="application/json+oembed" href="https://shellflare.sohamg.xyz/embed.json" />
+
+  <title>Shellflare - upload to Cloudflare with sh</title>
+</head>
+
+<body>
+    <header>
+      <h1>Shellflare - upload to Cloudflare with sh</h1>
+    </header>
+
+  <main>
+    <h1 id="introduction">Introduction</h1>
+<p><em><strong>Shellflare</strong></em> is a single file POSIX Shell script with minimal dependencies that
+uploads static assets to Cloudflare workers. Use shellflare to instantly deploy
+the output of a static site generator, documentation generator or any other file,
+and have it served as static content via HTTP on Cloudflare.</p>
+<h1 id="usage">Usage</h1>
+<h2 id="dependencies">Dependencies</h2>
+<p>Apart from a POSIX compliant shell (bash, zsh, etc), the following are needed:</p>
+<ul>
+<li>The command <code>sha256sum</code> (preferred) or <code>openssl</code> (useful for non GNU-based setups)</li>
+<li>The <a href="https://jqlang.org">jq</a> JSON CLI tool
+<ul>
+<li>Perhaps will support <code>yq</code> in the future.</li>
+</ul>
+</li>
+<li>Curl</li>
+<li>Standard POSIX utilities like <code>find</code>, <code>cat</code> etc.</li>
+<li>A cloudflare account and API token.</li>
+</ul>
+<h2 id="installation">Installation</h2>
+<pre data-lang="sh" style="background-color:#eff1f5;color:#4f5b66;" class="language-sh "><code class="language-sh" data-lang="sh"><span style="color:#bf616a;">$</span><span> curl https://shellflare.sohamg.xyz/sh &gt; /path/to/where/you/want/it.sh
+</span></code></pre>
+<p>That's it! Its a shell script, so make sure to mark executable. Done.</p>
+<h2 id="invocation">Invocation</h2>
+<ul>
+<li>
+<p>Set environment variable <code>CFLARE_API_KEY</code> to your API token.</p>
+<ul>
+<li>I could add support for reading this from a file/command if desired.</li>
+</ul>
+</li>
+<li>
+<p>Obtain usage information and settings:</p>
+<pre data-lang="sh" style="background-color:#eff1f5;color:#4f5b66;" class="language-sh "><code class="language-sh" data-lang="sh"><span style="color:#bf616a;">$</span><span> ./shellflare</span><span style="color:#bf616a;"> -h
+</span></code></pre>
+</li>
+<li>
+<p>Common invocation to deploy contents of <code>./public</code> to cloudflare:</p>
+<pre data-lang="sh" style="background-color:#eff1f5;color:#4f5b66;" class="language-sh "><code class="language-sh" data-lang="sh"><span style="color:#bf616a;">$</span><span> ./shellflare</span><span style="color:#bf616a;"> -e</span><span> user@domain.tld</span><span style="color:#bf616a;"> -n </span><span>&quot;</span><span style="color:#a3be8c;">worker-name</span><span>&quot;
+</span></code></pre>
+</li>
+<li>
+<p>Header and Redirect configuration is taken from the files <code>_headers</code> and
+<code>_redirects</code> from the current directory. Contents of the files are the same
+as in the Cloudflare documentation.</p>
+</li>
+</ul>
+<h1 id="source-code">Source Code</h1>
+<p><a href="https://github.com/SohamG/shellflare/blob/5eca8c7718db6f4b9efe92fd1d69925f6b8550c0/shellflare">Shellflare on Github</a></p>
+<h1 id="security-considerations">Security Considerations</h1>
+<p>All input to the script including via Environment Variables and CLI flags is
+assumed to be trusted/non malicious. If you have something bad in those, the
+script will probably do said bad thing. This is not a bug given the use
+case. The script is run as the user of the invoking shell, which MUST have
+appropriate permissions. User is responsible for the security of the API key.</p>
+<h1 id="license">License</h1>
+<p><a href="https://www.mozilla.org/en-US/MPL/">Mozilla Public License 2.0</a></p>
+<p>Content uploaded using this script naturally belongs to the user or its
+respective owner.</p>
+<h1 id="motivation">Motivation</h1>
+<p>I wanted to use/try <a href="https://pages.dev">Cloudflare Pages</a>, but turns out it's
+on the chopping block. So I looked at <a href="https://workers.dev">Workers</a> Static
+Assets but all the guides from Cloudflare involve using JavaScript frameworks,
+<code>npm</code> or <code>yarn</code>, and some complicated stuff about adaptors and <code>vite</code> and what
+not. I am .. not a fan of JS, and I'd rather avoid it as much as I can. Even by
+itself, an empty project using Cloudflare's
+<a href="https://github.com/cloudflare/workers-sdk">Wrangler</a> CLI tool has over
+<strong>150 MB</strong> of <code>node_modules</code>!</p>
+<p>I also refuse to entertain the idea that the (seemingly) trivial task of "files
+on my computer become files on Cloudflare's computer" <em>requires</em> an unwieldy
+mess of TypeScript compiled to JS and pulling in a whole bunch of packages.</p>
+<p>So I read the cloudflare API documentation, quickly realised that it blatantly
+wrong, then employed various debugging and figure-outing techniques
+(like changing random stuff and hope it works) and somehow managed to reproduce
+<code>wrangler deploy</code> as a POSIX <code>sh</code> script.<br />
+(Blog post about the API coming soon)</p>
+<hr />
+
+  </main>
+
+  <footer>
+    &lt;html&gt; =
+    <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC-BY-SA</a>
+    &amp;&amp; 
+    &lt;sh&gt; =
+    <a href="https://www.mozilla.org/en-US/MPL/">MPL-2.0</a>
+  </footer>
+
+</body>
+
+</html>

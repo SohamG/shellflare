@@ -18,6 +18,8 @@ ACCOUNT_ID=${CFLARE_ACCOUNT_ID:-}
 
 SCRIPT_NAME=${SCRIPT_NAME:-}
 
+HTML_HANDLING=${HTML_HANDLING:-"drop-trailing-slash"}
+
 # Need this to enable some dirty word splitting in subshells
 # The problem here is that this string will ordinarily not be eval'd
 # by the shell, so backslashes etc will be preserved.
@@ -53,6 +55,7 @@ api_base="https://api.cloudflare.com/client/v4"
 
 manifest='{ "manifest": {} }'
 
+exec 0<&-
 
 # Wrapper for curl to inject CURLFLAGS
 # Who says POSIX SH doesn't have arrays?
@@ -98,6 +101,8 @@ usage() {
 \tUSER_EMAIL          Email Associated with Cloudflare (same as -e)
 \tDATA_DIR            Directory of static files to upload (same as -d)
 \tSCRIPT_NAME         Name of script/worker/page for use in URL etc.
+\tHTML_HANDLING       Setting value for html_handling pertaining to management
+\t                    of trailing slashes. Same as Cloudflare documentation.
 \t                    (same as -n)
 \tCFLARE_API_KEY      Cloudflare API Key or API Token
 \tCFLARE_ACCOUNT_ID   Cloudflare account ID. If not provided, ID of first
@@ -154,6 +159,7 @@ ensure_datadir() {
     if test -z "$(ls -A "${DATA_DIR}")"; then
 	error "Refusing to upload empty directory! $(realpath "${DATA_DIR}")"
     fi
+    printf "Uploading directory %s\n" "$(realpath "${DATA_DIR}")"
 }
 
 ensure_hasher() {
@@ -269,7 +275,7 @@ populate_manifest() {
     done
 
     log "Created manifest:"
-    log "$(echo "${manifest}" | jq)"
+    log "$(echo "${manifest}" | jq -c)"
 
     # echo "${manifest}" | jq > ./manifest
 
@@ -357,9 +363,9 @@ do_upload() {
 	    done
 	final_res="$(cat "${TMPDIR}/.shellflare-tmp")"
 	rm "${TMPDIR}/.shellflare-tmp"
-	log "${final_res}"
+	log "$(echo "${final_res}" | jq -c)"
 	# this is the "return value" of the function.
-	echo "${final_res}"
+	echo "${final_res}" | jq -c
     fi
 }
 
@@ -372,17 +378,19 @@ upload_manifest() {
     sf_curl -X "POST" "${endpt}" -H "Content-Type: application/json" \
 	 -H "${authz_hdr}" \
 	 -H "X-Auth-Email: ${USER_EMAIL}" \
-	 -d "${manifest}"
+	 -d "$(echo "${manifest}" | jq -c)"
 }
 
 # $1: Result object after uploading all files.
 finalize_worker() {
     token="$(echo "$1" | jq -r '.result.jwt' | tr -d "\"")"
 
+    comp_date="$(date +%F)"
+
     md=$(jq -n -r ".assets.jwt=\"${token}\"")
     md=$(echo "${md}" | jq -r ".assets.config={}")
     md=$(echo "${md}" | jq -r ".assets.config.html_handling=\"drop-trailing-slash\"")
-    md=$(echo "${md}" | jq -r ".compatibility_date=\"2025-08-03\"")
+    md=$(echo "${md}" | jq -r ".compatibility_date=\"${comp_date}\"")
     md=$(echo "${md}" | jq -r ".compatibility_flags=[]")
 
     if test -s "./_headers"; then
@@ -404,10 +412,15 @@ finalize_worker() {
     # See comment above CURLFLAGS
     # this too probably shouldn't work.
     # shellcheck disable=2090,2086
-    sf_curl -X "PUT" "${endpt}" -H "${authz_hdr}" \
-	 -F metadata="${md}"
+    res=$(sf_curl -X "PUT" "${endpt}" -H "${authz_hdr}" \
+	 -F metadata="$(echo "${md}" | jq -c)")
 
-    #TODO: Enable subdomains, Take config object from user.
+    log "Deployment result: $(echo "${res}" | jq -c)"
+
+    cflare_check_error "${res}" "finalizing deployment"
+    
+    printf "Upload succesful! Created new deployment with ID %s\n" \
+	   "$(echo "${res}" | jq -r '.result.deployment_id')"
 
 }
 
@@ -477,7 +490,7 @@ main() {
     # Upload manifest, get upload JWT
     manifest_response="$(upload_manifest)"
 
-    printf "Log: %s:\n%s\n" "Manifest Response" "${manifest_response}" >&2
+    log "Manifest Response: $(echo "${manifest_response}" | jq -c)"
 
     cflare_check_error "${manifest_response}" "uploading manifest"
 
@@ -485,7 +498,7 @@ main() {
     final_res=$(do_upload "${manifest_response}")
 
     # echo "Up${final_res}"
-    log "File upload result: ${final_res}"
+    log "File upload result: $(echo "${final_res}" | jq -c)"
 
     cflare_check_error "${final_res}" "uploading assets"
 
@@ -507,5 +520,3 @@ case ${0##*/} in
 	main "$@";
         ;;
 esac
-
-
