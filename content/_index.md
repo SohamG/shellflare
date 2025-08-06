@@ -50,6 +50,10 @@ That's it! Its a shell script, so make sure to mark executable. Done.
  - Header and Redirect configuration is taken from the files `_headers` and
    `_redirects` from the current directory. Contents of the files are the same
    as in the Cloudflare documentation.
+   
+# Source Code
+
+[Shellflare on Github](https://github.com/SohamG/shellflare/blob/5eca8c7718db6f4b9efe92fd1d69925f6b8550c0/shellflare)
 
 # Security Considerations
 
