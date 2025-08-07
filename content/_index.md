@@ -16,12 +16,13 @@ and have it served as static content via HTTP on Cloudflare.
 
 Apart from a POSIX compliant shell (bash, zsh, etc), the following are needed:
 
- - The command `sha256sum` (preferred) or `openssl` (useful for non GNU-based setups)
+ - The command `sha256sum` (preferred) or `openssl`
+(useful for non GNU-based setups)
  - The [jq](https://jqlang.org) JSON CLI tool
    + Perhaps will support `yq` in the future.
  - Curl
  - Standard POSIX utilities like `find`, `cat` etc.
- - A cloudflare account and API token.
+ - A Cloudflare account and API token.
 
 ## Installation
 
@@ -51,17 +52,12 @@ That's it! Its a shell script, so make sure to mark executable. Done.
    `_redirects` from the current directory. Contents of the files are the same
    as in the Cloudflare documentation.
    
+ - All configuration can be passed as Environment Variables, making use in CI/CD
+   convenient.
+   
 # Source Code
 
-[Shellflare on Github](https://github.com/SohamG/shellflare/blob/5eca8c7718db6f4b9efe92fd1d69925f6b8550c0/shellflare)
-
-# Security Considerations
-
-All input to the script including via Environment Variables and CLI flags is
-assumed to be trusted/non malicious. If you have something bad in those, the
-script will probably do said bad thing. This is not a bug given the use
-case. The script is run as the user of the invoking shell, which MUST have
-appropriate permissions. User is responsible for the security of the API key.
+[Shellflare on Github](https://github.com/SohamG/shellflare/blob/main/shellflare)
 
 # License
 
@@ -69,6 +65,22 @@ appropriate permissions. User is responsible for the security of the API key.
 
 Content uploaded using this script naturally belongs to the user or its
 respective owner.
+
+# Security Considerations
+
+All input to the script including via Environment Variables and CLI flags is
+assumed to be trusted/non&nbsp;malicious. If you have something bad in those,
+the script will probably do said bad thing. This is not a bug given the use
+case. The script is run as the user of the invoking shell, which MUST have
+appropriate permissions. User is responsible for the security of the API key.
+
+# Limitations
+
+This tool is designed only for the upload of **static assets**. Therefore,
+actual worker code (code that runs when a endpoint is hit, like AWS Lambda) can
+not be uploaded with this tool. However, JavaScript run on the client browser,
+like the scripts included with `<script src=...>` will work as expected.
+
 
 # Motivation
 

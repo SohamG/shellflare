@@ -2,3 +2,4 @@ test
 .direnv
 .direnv/*
 public
+test.sh
